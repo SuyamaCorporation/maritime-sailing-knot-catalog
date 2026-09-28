@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>セーリングノット インタラクティブカタログ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .knot-card { cursor: pointer; transition: all 0.2s; }
+  .knot-card:hover { transform: translateY(-2px); }
+  .knot-card.selected { border-color: #6366f1; }
+  .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+  .rope { stroke-linecap: round; stroke-linejoin: round; fill: none; }
+</style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<script>
+function escapeHtml(str){return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+</script>
+
+<div class="max-w-6xl mx-auto p-4">
+  <h1 class="text-2xl font-bold text-indigo-400 mb-1">セーリングノット カタログ</h1>
+  <p class="text-gray-400 text-sm mb-4">帆船・キャンプ・海洋スポーツ向け ロープワーク — SVGアニメーション手順付き</p>
+
+  <div class="flex flex-col lg:flex-row gap-4">
+    <!-- Left: filters + knot list -->
+    <div class="w-full lg:w-72 flex-shrink-0">
+      <!-- Search & filter -->
+      <div class="mb-3 space-y-2">
+        <input type="text" id="searchInput" placeholder="ノット名検索..." class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm">
+        <select id="categoryFilter" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-1 text-sm">
+          <option value="">すべてのカテゴリ</option>
+          <option value="係留">係留</option>
+          <option value="接続">接続</option>
+          <option value="固定">固定</option>
+          <option value="輪">輪</option>
+          <option value="装飾">装飾</option>
+        </select>
+      </div>
+      <div id="knotList" class="space-y-1 max-h-[60vh] overflow-y-auto pr-1"></div>
+    </div>
+
+    <!-- Right: detail -->
+    <div class="flex-1 bg-gray-800 rounded-xl p-4">
+      <div id="knotDetail">
+        <p class="text-gray-500 text-center mt-12">左のリストからノットを選択してください</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function escapeHtml(str){return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+
+const knots = [
+  {
+    id: 1, name: 'もやい結び', en: 'Bowline', category: '輪', strength: 5, ease: 4,
+    uses: ['係留', 'レスキュー', 'ハーネス'],
+    desc: '「結び目の王様」と呼ばれる最重要ノット。強度が高く、荷重がかかっても解けず、荷重が無くなると解きやすい。',
+    steps: [
+      'ロープに小さな輪を作る（ウサギの穴）',
+      '先端（ウサギ）を穴から上に出す',
+      'ウサギが木の周りを回る（本体ロープの裏側へ）',
+      '元の穴に戻る（ウサギが穴に戻る）',
+      '引き締めてキングポストに固定'
+    ],
+    paths: [
+      // Step SVG paths — simplified rope illustrations
+      'M 50 80 C 70 80, 80 60, 80 50 C 80 35, 65 30, 50 35 C 35 30, 20 35, 20 50',
+      'M 50 80 C 70 80, 80 60, 80 50 C 80 35, 65 30, 50 35 C 35 30, 20 35, 20 50 M 50 35 L 50 20',
+      'M 50 80 C 70 80, 80 60, 80 50 C 80 35, 65 30, 50 35 C 35 30, 20 35, 20 50 M 50 20 L 50 35 C 60 30 70 35 50 50',
+      'M 30 80 C 40 80, 55 75, 50 65 C 45 55, 35 55, 30 60',
+      'M 30 80 C 40 80, 55 75, 50 65 C 45 55, 35 55, 30 60 C 25 50, 30 40, 50 45'
+    ]
+  },
+  {
+    id: 2, name: 'クリートヒッチ', en: 'Cleat Hitch', category: '係留', strength: 4, ease: 5,
+    uses: ['クリートへの係留', '桟橋接岸'],
+    desc: 'クリート（鉄製またはプラスチック製のT字金具）にロープを留める標準的な方法。素早く結べて素早く解ける。',
+    steps: ['クリートの根元にロープを一周させる', '8の字に巻き付ける（2往復）', '最後の輪を裏返してフック状にし、クリートに引っ掛ける', '引き締めて固定確認'],
+    paths: ['M 20 50 L 80 50', 'M 20 50 L 40 30 L 60 70 L 80 50', 'M 20 50 L 40 30 L 60 70 L 80 50 M 70 40 C 80 30 90 50 80 60', 'M 20 50 L 40 30 L 60 70 L 80 50 M 70 40 C 80 30 90 50 80 60 L 75 55']
+  },
+  {
+    id: 3, name: 'ビット留め', en: 'Bight Knot', category: '係留', strength: 4, ease: 4,
+    uses: ['係留', 'アンカーロープ'],
+    desc: '係柱や杭にロープを巻きつける基本的な係留方法。ビット（係留用のポスト）専用。',
+    steps: ['ロープをビットに一周させる', 'もう一周させて交差させる', '上から引き下ろして固定', '末端を安全に処理'],
+    paths: ['M 50 20 C 70 20 80 35 80 50', 'M 50 20 C 70 20 80 35 80 50 C 80 65 70 80 50 80', 'M 50 20 C 30 20 20 35 20 50 C 20 65 30 80 50 80', 'M 50 20 C 70 20 80 35 80 50 C 80 65 70 80 50 80 M 50 80 L 50 95']
+  },
+  {
+    id: 4, name: 'ボウラインオンアバイト', en: 'Bowline on a Bight', category: '輪', strength: 5, ease: 3,
+    uses: ['二本の輪が必要な場合', 'ボスンチェア'],
+    desc: '2つのループを作るもやい結びの変形。ロープ中間部で結べるため、末端が不要。救助用担架の代替に使用。',
+    steps: ['ロープ中間部に輪を作る', '輪を折り返して二重にする', '二重輪を主ロープに通す', '二重輪をひっくり返して主ロープを囲む', '引き締めて2つの輪を確認'],
+    paths: ['M 30 60 C 30 40 50 30 70 40', 'M 30 60 C 30 40 50 30 70 40 C 90 50 90 70 70 70', 'M 30 60 C 50 50 60 40 70 50', 'M 40 70 C 40 55 55 50 70 55', 'M 40 70 C 40 55 55 50 70 55 M 50 65 C 50 75 60 80 65 75']
+  },
+  {
+    id: 5, name: 'クラブヒッチ', en: 'Clove Hitch', category: '固定', strength: 3, ease: 5,
+    uses: ['テンポラリ係留', 'フェンダー結び', 'ポールへの固定'],
+    desc: '素早く結べる最も一般的な係留ノット。荷重方向が一定でないと緩む可能性あり。テンポラリ使用に最適。',
+    steps: ['ポールの一方向にロープを巻く', '交差させて反対方向に巻く', '最初の輪の下に先端を通す', '引き締める'],
+    paths: ['M 20 40 C 40 40 50 30 50 50', 'M 20 40 C 40 40 50 30 50 50 C 50 70 60 60 80 60', 'M 30 60 C 40 50 50 55 60 50', 'M 20 40 C 40 40 50 30 50 50 C 50 70 60 60 80 60 M 30 60 L 20 65']
+  },
+  {
+    id: 6, name: 'シートベンド', en: 'Sheet Bend', category: '接続', strength: 4, ease: 4,
+    uses: ['異なる太さのロープ接続', '帆布の修理'],
+    desc: '異なる太さのロープを接続する標準的な方法。より安全な二重シートベンドでは先端を2周させる。',
+    steps: ['太いロープに輪を作る', '細いロープを輪の下から通す', '細いロープを輪の後ろ側に回す', '太いロープの輪の下に入れて固定', '引き締め確認'],
+    paths: ['M 20 50 C 40 30 60 30 70 50', 'M 20 50 C 40 30 60 30 70 50 M 50 70 C 55 60 65 60 70 50', 'M 20 50 C 40 30 60 30 70 50 M 50 70 C 55 60 65 60 70 50 C 75 40 80 50 75 60', 'M 50 70 C 45 75 40 70 38 60 C 36 50 40 40 50 40', 'M 20 50 C 40 30 60 30 70 50 M 50 70 C 45 75 38 60 50 40 C 62 20 80 30 75 50']
+  },
+  {
+    id: 7, name: 'フィギュアエイトノット', en: 'Figure-Eight Knot', category: '固定', strength: 5, ease: 5,
+    uses: ['ストッパーノット', 'ロープ末端処理', 'クライミング'],
+    desc: '8の字の形をしたストッパーノット。荷重がかかっても解けず、荷重後も比較的解きやすい。クライミングでも多用。',
+    steps: ['先端で小さな輪を作る', '先端をロープ本体の下にくぐらせる', '最初の輪の中に先端を通す', '引き締めて8の字形を確認'],
+    paths: ['M 50 20 C 70 20 80 35 65 45', 'M 50 20 C 70 20 80 35 65 45 C 50 55 30 50 35 40', 'M 50 20 C 70 20 80 35 65 45 C 50 55 30 50 35 40 C 40 30 55 25 50 20', 'M 50 20 C 70 20 80 35 65 45 C 50 55 30 50 35 40 C 20 30 25 15 45 20 M 45 20 L 50 20']
+  },
+  {
+    id: 8, name: 'ラウンドターン・ツーハーフヒッチ', en: 'Round Turn & Two Half Hitches', category: '係留', strength: 4, ease: 4,
+    uses: ['リング係留', 'アンカーロープ', '固定係留'],
+    desc: 'リングやポールに確実に係留する方法。Round Turn（1.5回転）で摩擦を活かし、Two Half Hitchesで固定する。',
+    steps: ['リングにロープを1.5回転させる', '本体ロープに先端を回す', '先端を輪に通して1つ目のハーフヒッチ', '同様に2つ目のハーフヒッチを作る', '引き締めて固定'],
+    paths: ['M 30 50 C 40 30 60 30 70 50', 'M 30 50 C 40 30 60 30 70 50 C 80 70 60 80 40 70', 'M 30 50 C 40 30 60 30 70 50 C 80 70 60 80 40 70 M 70 65 C 75 55 80 60 75 70', 'M 70 65 C 75 55 80 60 75 70 M 75 62 C 82 55 85 65 78 72', 'M 30 50 C 40 30 60 30 70 50 M 75 50 L 90 50']
+  },
+  {
+    id: 9, name: 'アンカーベンド', en: 'Anchor Bend', category: '接続', strength: 5, ease: 3,
+    uses: ['アンカーロープ接続', '重要な永続係留'],
+    desc: 'フィッシャーマンズベンドとも呼ぶ。アンカーのリングへの接続に特化した非常に信頼性の高いノット。',
+    steps: ['リングに2周ロープを通す', '先端を2周目の輪の下にくぐらせる', '本体ロープに先端を巻いて半結び', '同じ方向にもう一度半結び', '末端を本体に添わせて処理'],
+    paths: ['M 30 50 C 40 30 60 30 70 50', 'M 30 50 C 40 30 60 30 70 50 C 75 70 55 80 35 65', 'M 35 65 C 30 55 38 45 50 50', 'M 50 50 C 62 55 70 45 65 35', 'M 65 35 C 60 25 50 30 48 42 L 45 55']
+  },
+  {
+    id: 10, name: 'スプライス（末端処理）', en: 'Eye Splice', category: '接続', strength: 5, ease: 2,
+    uses: ['永続的な輪作成', 'マスト接続', '強度最優先ライン'],
+    desc: '3本よりロープの末端を本体に編み込んで永続的な輪を作る高度技術。結び目より強度が高く、滑らかで引っかかりが少ない。',
+    steps: ['ロープ末端10cmほどをほどいて3本の撚りに分ける', '本体ロープの撚りの間に1本目を差し込む', '2本目を次の撚りの間に差し込む', '3本目をロープを裏返して差し込む', '各撚りを交互に4〜6回繰り返す', '末端を処理して完成'],
+    paths: ['M 50 20 L 50 50 M 45 50 L 40 65 M 50 50 L 50 65 M 55 50 L 60 65', 'M 30 50 C 35 40 45 42 45 50 C 45 58 38 62 35 55', 'M 30 50 C 35 40 45 42 45 50 M 50 50 C 55 42 65 44 65 52', 'M 30 50 C 35 40 45 42 45 50 M 50 50 C 55 42 65 44 65 52 M 55 50 C 58 60 52 68 48 62', 'M 25 50 C 35 30 55 28 65 40 C 75 52 70 68 60 72 C 45 78 30 72 25 60 C 22 55 22 52 25 50', 'M 25 50 C 35 30 55 28 65 40 C 75 52 70 68 60 72 C 45 78 30 72 25 60 M 55 72 L 55 85']
+  },
+  {
+    id: 11, name: 'リービングラインヒッチ', en: 'Reef Knot', category: '固定', strength: 3, ease: 5,
+    uses: ['帆のリーフポイント固定', '荷造り'],
+    desc: '俗に「本結び」とも呼ばれる。帆の縮帆（リーフ）時にリーフポイントを固定するために使用。荷重方向が一定のときのみ安全。',
+    steps: ['左手のロープを右の上に重ねて一度結ぶ', '今度は右のロープを左の上に重ねて結ぶ', '対称な結び目になっているか確認', '両端を引いて締める'],
+    paths: ['M 20 50 L 80 50', 'M 20 50 C 35 35 45 35 50 50', 'M 20 50 C 35 35 45 35 50 50 C 55 65 65 65 80 50', 'M 20 50 C 35 65 45 65 50 50 C 55 35 65 35 80 50']
+  },
+  {
+    id: 12, name: 'ウォールノット', en: 'Wall Knot', category: '装飾', strength: 3, ease: 2,
+    uses: ['装飾結び', 'ロープ末端飾り', 'ハンドル部'],
+    desc: '3本またはそれ以上の撚りを持つロープで作る装飾的なノット。マリンスポーツで伝統的に使用される技術。',
+    steps: ['ロープを3本の撚りに分ける', '各撚りを隣の撚りの下にくぐらせる輪を作る', '次の撚りも同様に隣の輪に通す', '3本目も最初の輪に通して締める', '形を整えながら引き締める'],
+    paths: ['M 50 20 L 35 50 M 50 20 L 50 55 M 50 20 L 65 50', 'M 50 20 L 35 50 C 33 60 40 65 50 60', 'M 50 20 L 50 55 C 55 65 62 63 65 55', 'M 50 20 L 65 50 C 68 60 62 68 52 65', 'M 35 50 C 33 65 42 72 52 68 C 62 72 70 65 65 55 C 62 45 55 42 50 55 C 42 55 36 58 35 50']
+  }
+];
+
+let selectedKnot = null;
+let currentStep = 0;
+let animInterval = null;
+
+function renderKnotList() {
+  const list = document.getElementById('knotList');
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const cat = document.getElementById('categoryFilter').value;
+
+  const filtered = knots.filter(k =>
+    (k.name.includes(search) || k.en.toLowerCase().includes(search)) &&
+    (cat === '' || k.category === cat)
+  );
+
+  list.innerHTML = '';
+  filtered.forEach(knot => {
+    const div = document.createElement('div');
+    div.className = `knot-card p-2 rounded-lg border ${selectedKnot?.id === knot.id ? 'border-indigo-500 bg-indigo-900/30' : 'border-gray-700 bg-gray-800'} cursor-pointer`;
+    div.innerHTML = `
+      <div class="flex justify-between items-start">
+        <div>
+          <span class="font-semibold text-sm text-white">${escapeHtml(knot.name)}</span>
+          <span class="text-xs text-gray-400 ml-2">${escapeHtml(knot.en)}</span>
+        </div>
+        <span class="text-xs bg-gray-700 rounded px-1 py-0.5 text-gray-300">${escapeHtml(knot.category)}</span>
+      </div>
+      <div class="flex gap-1 mt-1">
+        ${renderStars(knot.strength, 'text-red-400')} <span class="text-xs text-gray-500 mx-1">強</span>
+        ${renderStars(knot.ease, 'text-green-400')} <span class="text-xs text-gray-500">易</span>
+      </div>
+    `;
+    div.addEventListener('click', () => selectKnot(knot));
+    list.appendChild(div);
+  });
+}
+
+function renderStars(n, cls) {
+  return Array.from({length: 5}, (_, i) => `<span class="${i < n ? cls : 'text-gray-700'}">★</span>`).join('');
+}
+
+function selectKnot(knot) {
+  selectedKnot = knot;
+  currentStep = 0;
+  if (animInterval) clearInterval(animInterval);
+  renderKnotList();
+  renderDetail();
+}
+
+function renderDetail() {
+  const knot = selectedKnot;
+  if (!knot) return;
+
+  const detail = document.getElementById('knotDetail');
+  detail.innerHTML = `
+    <div class="mb-4">
+      <div class="flex items-center gap-3 mb-2">
+        <h2 class="text-xl font-bold text-yellow-300">${escapeHtml(knot.name)}</h2>
+        <span class="text-gray-400 text-sm">${escapeHtml(knot.en)}</span>
+        <span class="ml-auto text-xs bg-indigo-800 rounded-full px-2 py-0.5">${escapeHtml(knot.category)}</span>
+      </div>
+      <p class="text-gray-300 text-sm mb-2">${escapeHtml(knot.desc)}</p>
+      <div class="flex gap-4 text-sm">
+        <div><span class="text-gray-400">強度: </span>${renderStars(knot.strength, 'text-red-400')}</div>
+        <div><span class="text-gray-400">解きやすさ: </span>${renderStars(knot.ease, 'text-green-400')}</div>
+      </div>
+      <div class="mt-2 flex flex-wrap gap-1">
+        ${knot.uses.map(u => `<span class="text-xs bg-gray-700 rounded-full px-2 py-0.5 text-cyan-300">${escapeHtml(u)}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- SVG diagram -->
+      <div class="bg-gray-900 rounded-xl p-4 flex flex-col items-center">
+        <div class="text-sm text-gray-400 mb-2">手順 <span id="stepNum">${currentStep + 1}</span>/${knot.steps.length}</div>
+        <svg id="knotSvg" viewBox="0 0 100 100" width="180" height="180" class="bg-gray-800 rounded-lg">
+          <rect width="100" height="100" fill="#1f2937"/>
+        </svg>
+        <p id="stepDesc" class="text-sm text-gray-300 mt-2 text-center h-10 flex items-center">${escapeHtml(knot.steps[currentStep])}</p>
+        <div class="flex gap-2 mt-2">
+          <button onclick="prevStep()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">◀ 前</button>
+          <button onclick="autoPlay()" id="autoBtn" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-sm">自動再生</button>
+          <button onclick="nextStep()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">次 ▶</button>
+        </div>
+        <div class="flex gap-1 mt-2" id="stepDots"></div>
+      </div>
+
+      <!-- Steps list -->
+      <div>
+        <h3 class="text-indigo-300 font-semibold text-sm mb-2">手順一覧</h3>
+        <ol class="space-y-2">
+          ${knot.steps.map((step, i) =>
+            `<li class="flex gap-2 text-sm items-start">
+              <span class="step-dot ${i === currentStep ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-400'}" onclick="jumpStep(${i})">${i+1}</span>
+              <span class="${i === currentStep ? 'text-white' : 'text-gray-400'}">${escapeHtml(step)}</span>
+            </li>`
+          ).join('')}
+        </ol>
+      </div>
+    </div>
+  `;
+
+  renderStep();
+}
+
+function renderStep() {
+  const knot = selectedKnot;
+  if (!knot) return;
+  const svg = document.getElementById('knotSvg');
+  if (!svg) return;
+
+  // Draw all paths up to current step
+  let pathsHtml = `<rect width="100" height="100" fill="#1f2937"/>`;
+  const colors = ['#60A5FA','#818CF8','#A78BFA','#C084FC','#E879F9','#F472B6'];
+
+  for (let i = 0; i <= currentStep && i < knot.paths.length; i++) {
+    const opacity = i < currentStep ? 0.4 : 1;
+    const color = colors[i % colors.length];
+    const parts = knot.paths[i].split(' M ');
+    parts.forEach((part, pi) => {
+      const d = pi === 0 ? part : 'M ' + part;
+      pathsHtml += `<path d="${escapeHtml(d)}" stroke="${escapeHtml(color)}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${opacity}"/>`;
+    });
+  }
+
+  // Highlight current rope end
+  const lastPath = knot.paths[currentStep];
+  const lastPt = lastPath.match(/[\d.]+\s+[\d.]+/g);
+  if (lastPt && lastPt.length > 0) {
+    const [lx, ly] = lastPt[lastPt.length - 1].split(/\s+/);
+    pathsHtml += `<circle cx="${escapeHtml(lx)}" cy="${escapeHtml(ly)}" r="3" fill="#FBBF24"/>`;
+  }
+
+  svg.innerHTML = pathsHtml;
+
+  // Update step number
+  const sn = document.getElementById('stepNum');
+  if (sn) sn.textContent = currentStep + 1;
+  const sd = document.getElementById('stepDesc');
+  if (sd) sd.textContent = knot.steps[currentStep];
+
+  // Update dots
+  const dots = document.getElementById('stepDots');
+  if (dots) {
+    dots.innerHTML = knot.steps.map((_, i) =>
+      `<span class="w-2 h-2 rounded-full ${i === currentStep ? 'bg-indigo-400' : 'bg-gray-600'} inline-block"></span>`
+    ).join('');
+  }
+
+  // Update step list highlight
+  const listItems = document.querySelectorAll('#knotDetail li');
+  listItems.forEach((li, i) => {
+    const dot = li.querySelector('.step-dot');
+    const text = li.querySelector('span:last-child');
+    if (dot) dot.className = `step-dot ${i === currentStep ? 'bg-indigo-500 text-white' : 'bg-gray-700 text-gray-400'}`;
+    if (text) text.className = i === currentStep ? 'text-white text-sm' : 'text-gray-400 text-sm';
+  });
+}
+
+function nextStep() {
+  if (!selectedKnot) return;
+  if (currentStep < selectedKnot.steps.length - 1) { currentStep++; renderStep(); }
+}
+
+function prevStep() {
+  if (currentStep > 0) { currentStep--; renderStep(); }
+}
+
+function jumpStep(i) {
+  currentStep = i;
+  renderStep();
+}
+
+function autoPlay() {
+  if (animInterval) {
+    clearInterval(animInterval);
+    animInterval = null;
+    const btn = document.getElementById('autoBtn');
+    if (btn) btn.textContent = '自動再生';
+    return;
+  }
+  currentStep = 0;
+  renderStep();
+  const btn = document.getElementById('autoBtn');
+  if (btn) btn.textContent = '停止';
+  animInterval = setInterval(() => {
+    if (!selectedKnot || currentStep >= selectedKnot.steps.length - 1) {
+      clearInterval(animInterval);
+      animInterval = null;
+      const b = document.getElementById('autoBtn');
+      if (b) b.textContent = '自動再生';
+      return;
+    }
+    currentStep++;
+    renderStep();
+  }, 1500);
+}
+
+document.getElementById('searchInput').addEventListener('input', renderKnotList);
+document.getElementById('categoryFilter').addEventListener('change', renderKnotList);
+
+renderKnotList();
+</script>
+</body>
+</html>
